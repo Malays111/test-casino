@@ -5,7 +5,7 @@ CRYPTO_BOT_TOKEN = "458530:AA2k6GJxJ6VXSa13SjZIVFziqJL4Sgg0oe3"
 # API URLs
 CRYPTO_BOT_API = "https://pay.crypt.bot"
 # WEBHOOK_URL = "https://test-casino-taupe.vercel.app/api/crypto-webhook"  # URL для webhook уведомлений (закомментирован из-за ошибки 405)
-WEBHOOK_URL = "https://test-casino.railway.internal"  # Отключаем webhook до исправления URL
+WEBHOOK_URL = "https://api.your-casino.com/api/crypto-webhook"  # Custom domain webhook URL
 
 # Кнопки пополнения
 CASINO_NAME = "VanishCasino"
