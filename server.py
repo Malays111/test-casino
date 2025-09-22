@@ -35,6 +35,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
                     invoice_data = data.get('payload', {})
                     status = invoice_data.get('status')
                     if status == 'paid':
+                        # Здесь будет обработка платежа
                         result = {"ok": True, "message": "Payment processed"}
                     else:
                         result = {"ok": False, "error": "Payment not paid"}
