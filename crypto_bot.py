@@ -41,10 +41,8 @@ class CryptoBotAPI:
 
         try:
             response = requests.get(url, params=params, headers=self.headers)
-            print(f"Ответ от Crypto Bot: {response.status_code}")  # Отладка
             if response.status_code == 200:
                 result = response.json()
-                print(f"Данные инвойсов: {result}")  # Отладка
                 return result
         except Exception as e:
             print(f"Ошибка получения инвойсов: {e}")
@@ -69,7 +67,6 @@ class CryptoBotAPI:
 
         try:
             response = requests.post(url, json=payload, headers=self.headers)
-            print(f"Ответ от Crypto Bot: {response.status_code}")  # Отладка
             if response.status_code == 200:
                 result = response.json()
                 print(f"Результат перевода: {result}")  # Отладка

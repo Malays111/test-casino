@@ -252,11 +252,11 @@ async def auto_check_payments():
                     except Exception as e:
                         pass  # Игнорируем ошибки для снижения нагрузки
 
-            # Ждем 60 секунд перед следующей проверкой
-            await asyncio.sleep(60)
+            # Ждем 3 секунды перед следующей проверкой
+            await asyncio.sleep(3)
 
         except Exception as e:
-            await asyncio.sleep(60)  # Ждем 60 секунд при ошибке
+            await asyncio.sleep(3)  # Ждем 3 секунды при ошибке
 
 # Функция предварительной загрузки данных
 async def preload_data():
@@ -309,7 +309,6 @@ async def update_top_cache():
                 top_spent_cache = await async_get_top_spent(5)
                 top_referrals_cache = await async_get_top_referrals(5)
                 last_cache_update = current_time
-                print("Кэш топов обновлен")
         await asyncio.sleep(30)  # Проверяем каждые 30 секунд
 
 # Функция получения топов из кэша
@@ -462,7 +461,6 @@ async def process_group_message_queue():
 
                 try:
                     await bot.send_photo(chat_id=group_id, photo=photo_url, caption=caption)
-                    print(f"Результат игры отправлен в группу {group_id}")
                 except Exception as e:
                     print(f"Ошибка отправки в группу {group_id}: {e}")
 
@@ -472,7 +470,6 @@ async def process_group_message_queue():
 
                 try:
                     await bot.send_message(chat_id=group_id, text=text)
-                    print(f"Результат вывода отправлен в группу {group_id}")
                 except Exception as e:
                     print(f"Ошибка отправки в VIP группу {group_id}: {e}")
 
@@ -2358,7 +2355,6 @@ async def process_basketball_prediction(callback_query: types.CallbackQuery, pre
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
-            print("Результат баскетбола отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -2754,7 +2750,6 @@ async def blackjack_hit_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
                 photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
                 await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
-                print("Результат blackjack отправлен успешно")
             except Exception as e:
                 print(f"Ошибка отправки в группу: {e}")
                 pass
@@ -2866,9 +2861,7 @@ async def blackjack_stand_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
-            print("Результат blackjack отправлен успешно")
         except Exception as e:
-            print(f"Ошибка отправки в группу: {e}")
             pass
     else:
         print("Группа для результатов не установлена")
@@ -2945,7 +2938,6 @@ async def slots_spin_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
-            print("Результат слотов отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -3127,7 +3119,6 @@ async def duel_confirm_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
-            print("Результат дуэли отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -3179,7 +3170,6 @@ async def duel_confirm_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
-            print("Результат баскетбола отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -3884,8 +3874,7 @@ async def withdraw_amount_handler(message: types.Message, state: FSMContext):
 💲 {winnings_label}: {winnings}"""
                 print(f"Отправка сообщения в группу {vip_group_id} с текстом: {group_text}")
                 result = await bot.send_message(chat_id=vip_group_id, text=group_text)
-                print(f"Результат отправки: {result}")
-                print("Результат вывода отправлен успешно")
+                pass
             except Exception as e:
                 print(f"Ошибка отправки в VIP группу: {e}")
                 import traceback
@@ -4045,7 +4034,6 @@ async def dice_color_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
-            print("Результат кубиков отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -4347,7 +4335,6 @@ async def update_payment_message_success(invoice_id, telegram_id, amount, messag
                     media=media,
                     reply_markup=get_main_menu()
                 )
-                print(f"Сообщение платежа обновлено на успешное: chat_id={final_chat_id}, message_id={final_message_id}, amount={final_amount}")
             except Exception as e:
                 print(f"Ошибка редактирования сообщения платежа: {e}")
                 # Если редактирование не удалось, отправляем новое сообщение
@@ -4363,7 +4350,6 @@ async def update_payment_message_success(invoice_id, telegram_id, amount, messag
                 text=success_text,
                 parse_mode="HTML"
             )
-            print(f"Сообщение об успешной оплате отправлено пользователю: {telegram_id}, amount={final_amount}")
 
     except Exception as e:
         print(f"Ошибка обновления сообщения платежа: {e}")
