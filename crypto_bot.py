@@ -22,13 +22,12 @@ class CryptoBotAPI:
 
         try:
             response = requests.post(url, json=payload, headers=self.headers)
-            print(f"Create invoice response: {response.status_code} - {response.text}")
             if response.status_code == 200:
                 return response.json()
             else:
-                print(f"Ошибка API: {response.status_code} - {response.text}")
+                pass
         except Exception as e:
-            print(f"Ошибка создания инвойса: {e}")
+            pass
         return None
     
     def get_invoices(self, invoice_ids=None):
@@ -37,15 +36,13 @@ class CryptoBotAPI:
         if invoice_ids:
             params["invoice_ids"] = ','.join(invoice_ids)
 
-        print(f"Запрос инвойсов: {params}")  # Отладка
-
         try:
             response = requests.get(url, params=params, headers=self.headers)
             if response.status_code == 200:
                 result = response.json()
                 return result
         except Exception as e:
-            print(f"Ошибка получения инвойсов: {e}")
+            pass
         return None
 
     def create_transfer(self, user_id, asset="USDT", amount=None, spend_id=None, comment=None, disable_send_notification=None):
@@ -63,29 +60,22 @@ class CryptoBotAPI:
         # Убираем None значения
         payload = {k: v for k, v in payload.items() if v is not None}
 
-        print(f"Создание перевода: {payload}")  # Отладка
-
         try:
             response = requests.post(url, json=payload, headers=self.headers)
             if response.status_code == 200:
                 result = response.json()
-                print(f"Результат перевода: {result}")  # Отладка
                 return result
             else:
                 # Обработка ошибок HTTP
                 try:
                     error_data = response.json()
-                    print(f"Ошибка API: {error_data}")
                     return {"error": error_data}
                 except:
-                    print(f"Ошибка HTTP {response.status_code}: {response.text}")
                     return {"error": f"HTTP {response.status_code}: {response.text}"}
 
         except requests.exceptions.RequestException as e:
-            print(f"Ошибка сети при создании перевода: {e}")
             return {"error": f"Network error: {str(e)}"}
         except Exception as e:
-            print(f"Неожиданная ошибка создания перевода: {e}")
             return {"error": f"Unexpected error: {str(e)}"}
         return None
 
@@ -96,13 +86,11 @@ class CryptoBotAPI:
 
         try:
             response = requests.get(url, params=params, headers=self.headers)
-            print(f"Баланс бота: {response.status_code}")  # Отладка
             if response.status_code == 200:
                 result = response.json()
-                print(f"Баланс: {result}")  # Отладка
                 return result
         except Exception as e:
-            print(f"Ошибка получения баланса: {e}")
+            pass
         return None
 
     def create_check(self, amount, description="Пополнение баланса VanishCasino"):
@@ -116,13 +104,12 @@ class CryptoBotAPI:
 
         try:
             response = requests.post(url, json=payload, headers=self.headers)
-            print(f"Create check response: {response.status_code} - {response.text}")
             if response.status_code == 200:
                 return response.json()
             else:
-                print(f"Ошибка API: {response.status_code} - {response.text}")
+                pass
         except Exception as e:
-            print(f"Ошибка создания чека: {e}")
+            pass
         return None
 
     def get_checks(self, check_ids=None):
@@ -137,7 +124,7 @@ class CryptoBotAPI:
             if response.status_code == 200:
                 return response.json()
         except Exception as e:
-            print(f"Ошибка получения чеков: {e}")
+            pass
         return None
 
     def set_webhook(self, webhook_url):
@@ -149,13 +136,12 @@ class CryptoBotAPI:
 
         try:
             response = requests.post(url, json=payload, headers=self.headers)
-            print(f"Set webhook response: {response.status_code} - {response.text}")
             if response.status_code == 200:
                 return response.json()
             else:
-                print(f"Ошибка установки вебхука: {response.status_code} - {response.text}")
+                pass
         except Exception as e:
-            print(f"Ошибка установки вебхука: {e}")
+            pass
         return None
 
     def delete_webhook(self):
@@ -164,13 +150,12 @@ class CryptoBotAPI:
 
         try:
             response = requests.post(url, headers=self.headers)
-            print(f"Delete webhook response: {response.status_code} - {response.text}")
             if response.status_code == 200:
                 return response.json()
             else:
-                print(f"Ошибка удаления вебхука: {response.status_code} - {response.text}")
+                pass
         except Exception as e:
-            print(f"Ошибка удаления вебхука: {e}")
+            pass
         return None
 
     def get_wallet_address(self):
@@ -183,15 +168,12 @@ class CryptoBotAPI:
     def process_webhook_data(self, webhook_data):
         """Обработка данных webhook от CryptoBot"""
         try:
-            print(f"Получены данные webhook: {webhook_data}")
-
             # Извлекаем данные из webhook
             invoice_id = webhook_data.get('payload', {}).get('invoice_id')
             status = webhook_data.get('payload', {}).get('status')
             amount = webhook_data.get('payload', {}).get('amount')
 
             if not invoice_id or not status:
-                print("Отсутствуют обязательные поля в webhook данных")
                 return {"success": False, "error": "Missing required fields"}
 
             # Импортируем функцию process_webhook_payment из bot.py
@@ -207,11 +189,9 @@ class CryptoBotAPI:
             import asyncio
             result = asyncio.run(process_webhook_payment(invoice_id, status, amount))
 
-            print(f"Результат обработки webhook: {result}")
             return result
 
         except Exception as e:
-            print(f"Ошибка обработки webhook данных: {e}")
             return {"success": False, "error": str(e)}
 
 crypto_bot = CryptoBotAPI()
