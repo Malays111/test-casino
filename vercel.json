@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/crypto-webhook.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/crypto-webhook",
+      "dest": "api/crypto-webhook.py"
+    }
+  ]
+}
