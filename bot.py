@@ -633,9 +633,8 @@ def get_admin_panel():
 
 # Кнопки пополнения
 def get_deposit_menu():
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main")]
-    ])
+    # Возвращаем пустую клавиатуру вместо кнопки "Назад"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
     return keyboard
 
 # Кнопка назад
@@ -660,7 +659,8 @@ def get_games_menu():
     return keyboard
 
 def get_deposit_back_button():
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="deposit")]])
+    # Возвращаем пустую клавиатуру вместо кнопки "Назад"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
     return keyboard
 
 # Меню групп
@@ -3282,7 +3282,7 @@ async def process_custom_amount(message: types.Message, state: FSMContext):
             except:
                 await message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=confirm_text, reply_markup=get_deposit_menu(), parse_mode="HTML")
 
-            await process_deposit(fake_callback, amount)
+            await process_deposit(fake_callback, amount, state)
         except Exception as e:
             print(f"Ошибка создания платежа: {e}")
             await message.answer("❌ Ошибка создания платежа. Попробуйте позже.", reply_markup=get_deposit_back_button())
@@ -3292,7 +3292,7 @@ async def process_custom_amount(message: types.Message, state: FSMContext):
         await message.answer("❌ Введите корректную сумму (например: 5, 5.5, 5$)", reply_markup=get_deposit_back_button())
 
 # Процесс создания платежа
-async def process_deposit(callback_query, amount):
+async def process_deposit(callback_query, amount, state=None):
     user_telegram_id = callback_query.from_user.id
     user_db = await async_get_user(user_telegram_id)
 
@@ -3336,7 +3336,7 @@ async def process_deposit(callback_query, amount):
         return
 
     # Сохраняем платеж в БД
-    await async_db.create_payment(user_id, amount, invoice_id)
+    await async_db.create_payment(user_id, amount, invoice_id, callback_query.message.message_id, callback_query.message.chat.id)
 
     # Отправляем чек пользователю
     pay_text = f"""💰 Пополнение баланса на {amount}$
@@ -3346,8 +3346,7 @@ async def process_deposit(callback_query, amount):
 После оплаты средства будут автоматически зачислены на ваш баланс."""
 
     pay_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💳 Оплатить", url=pay_url)],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="deposit")]
+        [InlineKeyboardButton(text="💳 Оплатить", url=pay_url)]
     ])
 
     # Проверяем, можем ли мы редактировать сообщение
@@ -3355,6 +3354,9 @@ async def process_deposit(callback_query, amount):
         if hasattr(callback_query, 'message') and callback_query.message:
             media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=pay_text, parse_mode="Markdown")
             await callback_query.message.edit_media(media=media, reply_markup=pay_keyboard)
+            # Сохраняем message_id для последующего обновления при успешной оплате
+            if state:
+                await state.update_data(payment_message_id=callback_query.message.message_id, payment_chat_id=callback_query.message.chat.id, payment_invoice_id=invoice_id)
         else:
             await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard, parse_mode="Markdown")
     except:
@@ -3944,6 +3946,9 @@ async def check_pending_payments(telegram_id):
                         await process_payment_async(telegram_id, amount)
                         await async_update_payment_status(invoice_id, 'paid')
 
+                        # Обновляем сообщение платежа на успешное
+                        await update_payment_message_success(invoice_id, telegram_id, amount)
+
             # Добавляем задержку между запросами к API
             await asyncio.sleep(1)
 
@@ -4304,6 +4309,65 @@ def setup_handlers():
         # Обработчики промокодов
         dp.message.register(promo_code_handler, StateFilter(PromoStates.waiting_for_promo_code))
 
+# Функция обновления сообщения платежа на успешное
+async def update_payment_message_success(invoice_id, telegram_id, amount, message_id=None, chat_id=None):
+    """Обновляет сообщение с платежа на успешное и перенаправляет в главное меню"""
+    try:
+        # Получаем платеж из БД для получения суммы и message_id
+        payment = await async_get_payment_by_invoice(invoice_id)
+        if not payment:
+            print(f"Платеж не найден для обновления сообщения: invoice_id={invoice_id}")
+            return
+
+        user_id, db_amount, status, db_message_id, db_chat_id = payment
+        final_amount = amount if amount is not None else db_amount
+
+        # Используем message_id и chat_id из БД, если они не переданы как параметры
+        final_message_id = message_id if message_id is not None else db_message_id
+        final_chat_id = chat_id if chat_id is not None else db_chat_id
+
+        # Получаем актуальный баланс пользователя
+        balance, referral_balance = await get_cached_balance(telegram_id)
+
+        # Создаем успешное сообщение
+        success_text = f"""✅ <b>ОПЛАТА УСПЕШНО ПОДТВЕРЖДЕНА!</b>
+
+💰 Сумма: <code>{final_amount}$</code>
+💎 Средства зачислены на ваш баланс
+
+<i>Добро пожаловать в главное меню!</i>"""
+
+        # Если есть message_id, редактируем существующее сообщение
+        if final_message_id and final_chat_id:
+            try:
+                media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=success_text, parse_mode="HTML")
+                await bot.edit_message_media(
+                    chat_id=final_chat_id,
+                    message_id=final_message_id,
+                    media=media,
+                    reply_markup=get_main_menu()
+                )
+                print(f"Сообщение платежа обновлено на успешное: chat_id={final_chat_id}, message_id={final_message_id}, amount={final_amount}")
+            except Exception as e:
+                print(f"Ошибка редактирования сообщения платежа: {e}")
+                # Если редактирование не удалось, отправляем новое сообщение
+                await bot.send_message(
+                    chat_id=telegram_id,
+                    text=success_text,
+                    parse_mode="HTML"
+                )
+        else:
+            # Отправляем новое сообщение с уведомлением
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=success_text,
+                parse_mode="HTML"
+            )
+            print(f"Сообщение об успешной оплате отправлено пользователю: {telegram_id}, amount={final_amount}")
+
+    except Exception as e:
+        print(f"Ошибка обновления сообщения платежа: {e}")
+
 # Функция обработки webhook платежей от CryptoBot
 async def process_webhook_payment(invoice_id, status, amount=None):
     """Обработка webhook уведомлений о платежах от CryptoBot"""
@@ -4349,28 +4413,8 @@ async def process_webhook_payment(invoice_id, status, amount=None):
 
         print(f"Средства успешно зачислены: telegram_id={telegram_id}, amount={final_amount}")
 
-        # Отправляем уведомление пользователю
-        try:
-            user_data = await async_get_user(telegram_id)
-            if user_data:
-                balance, referral_balance = await get_cached_balance(telegram_id)
-
-                notification_text = f"""✅ <b>ПЛАТЕЖ ПОЛУЧЕН!</b>
-
-💰 Сумма: <code>{final_amount}$</code>
-💎 Ваш баланс: <code>{balance}$</code>
-
-<i>Средства автоматически зачислены на ваш счет!</i>"""
-
-                # Отправляем уведомление пользователю
-                await bot.send_message(
-                    chat_id=telegram_id,
-                    text=notification_text,
-                    parse_mode="HTML"
-                )
-                print(f"Уведомление отправлено пользователю: {telegram_id}")
-        except Exception as e:
-            print(f"Ошибка отправки уведомления: {e}")
+        # Обновляем сообщение платежа на успешное
+        await update_payment_message_success(invoice_id, telegram_id, final_amount)
 
         return {"success": True, "message": f"Payment processed successfully: {final_amount}$"}
 

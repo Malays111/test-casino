@@ -89,6 +89,8 @@ class AsyncDatabase:
                 amount REAL,
                 crypto_bot_invoice_id TEXT,
                 status TEXT DEFAULT 'pending',
+                message_id INTEGER,
+                chat_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''', commit=True)
@@ -355,10 +357,10 @@ class AsyncDatabase:
             return user[3] + user[5]  # balance + referral_balance
         return 0.0
 
-    async def create_payment(self, user_id: int, amount: float, invoice_id: str) -> int:
+    async def create_payment(self, user_id: int, amount: float, invoice_id: str, message_id: int = None, chat_id: int = None) -> int:
         return await asyncio.to_thread(self._execute_query,
-            "INSERT INTO payments (user_id, amount, crypto_bot_invoice_id) VALUES (?, ?, ?)",
-            (user_id, amount, invoice_id), commit=True)
+            "INSERT INTO payments (user_id, amount, crypto_bot_invoice_id, message_id, chat_id) VALUES (?, ?, ?, ?, ?)",
+            (user_id, amount, invoice_id, message_id, chat_id), commit=True)
 
     async def update_payment_status(self, invoice_id: str, status: str):
         await asyncio.to_thread(self._execute_query,
@@ -510,7 +512,7 @@ class AsyncDatabase:
 
     async def get_payment_by_invoice(self, invoice_id: str) -> Optional[Tuple]:
         return await asyncio.to_thread(self._execute_query,
-            "SELECT user_id, amount, status FROM payments WHERE crypto_bot_invoice_id = ?",
+            "SELECT user_id, amount, status, message_id, chat_id FROM payments WHERE crypto_bot_invoice_id = ?",
             (invoice_id,), fetchone=True)
 
     async def get_telegram_id_by_user_id(self, user_id: int) -> Optional[int]:
