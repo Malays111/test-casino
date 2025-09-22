@@ -3326,7 +3326,7 @@ async def process_deposit(callback_query, amount, state=None):
         return
 
     # Сохраняем платеж в БД
-    await async_db.create_payment(user_id, amount, invoice_id, callback_query.message.message_id, callback_query.message.chat.id)
+    await async_db.create_payment(user_id, amount, invoice_id)
 
     # Отправляем чек пользователю
     pay_text = f"""💰 Пополнение баланса на {amount}$
