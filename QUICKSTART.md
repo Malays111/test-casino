@@ -5,8 +5,9 @@
 Я создал полную конфигурацию для развертывания бота на хостинге без веб-хуков:
 
 ### ✅ Созданные файлы:
-- `railway.toml` - конфигурация для Railway
+- `railway.toml` - конфигурация для Railway (Docker)
 - `Dockerfile` - Docker образ для Railway
+- `.dockerignore` - оптимизация сборки Docker
 - `RAILWAY-DEPLOY.md` - подробная инструкция для Railway
 - `Procfile` - конфигурация для Heroku/PythonAnywhere
 - `runtime.txt` - версия Python (3.11.0)
