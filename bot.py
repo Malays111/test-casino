@@ -2,8 +2,6 @@ from aiogram import types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram import Command
-from aiogram.fsm.context import FSMContext
 from config import TELEGRAM_TOKEN, DEPOSIT_AMOUNTS, CASINO_NAME, DUEL_FAQ_URL, DICE_FAQ_URL, BASKETBALL_FAQ_URL, SLOTS_FAQ_URL, BLACKJACK_FAQ_URL, DARTS_FAQ_URL, BACKGROUND_IMAGE_URL, ADMIN_IDS, REFERRAL_BONUS, REFERRAL_MIN_DEPOSIT, DAILY_TASKS, GROUPS
 
 # URL изображений для результатов игр
@@ -4072,20 +4070,20 @@ async def game_placeholder_handler(callback_query: types.CallbackQuery):
 def setup_handlers():
     if dp:
         # Команды
-        dp.message.register(start_command, Command('start', 'restart'))
-        dp.message.register(give_command, Command('give'))
-        dp.message.register(panel_command, Command('panel'))
-        dp.message.register(tasks_command, Command('tasks'))
-        dp.message.register(setgroup_command, Command('setgroup'))
-        dp.message.register(setvip_command, Command('setvip'))
-        dp.message.register(getgroup_command, Command('getgroup'))
-        dp.message.register(getvip_command, Command('getvip'))
-        dp.message.register(getgroups_command, Command('getgroups'))
-        dp.message.register(createpromo_command, Command('createpromo'))
-        dp.message.register(listpromo_command, Command('listpromo'))
-        dp.message.register(logs_command, Command('logs'))
-        dp.message.register(stats_command, Command('stats'))
-        dp.message.register(set_command, Command('set'))
+        dp.message.register(start_command, F.text.in_(['/start', '/restart']))
+        dp.message.register(give_command, F.text.startswith('/give'))
+        dp.message.register(panel_command, F.text == '/panel')
+        dp.message.register(tasks_command, F.text == '/tasks')
+        dp.message.register(setgroup_command, F.text.startswith('/setgroup'))
+        dp.message.register(setvip_command, F.text.startswith('/setvip'))
+        dp.message.register(getgroup_command, F.text == '/getgroup')
+        dp.message.register(getvip_command, F.text == '/getvip')
+        dp.message.register(getgroups_command, F.text == '/getgroups')
+        dp.message.register(createpromo_command, F.text.startswith('/createpromo'))
+        dp.message.register(listpromo_command, F.text == '/listpromo')
+        dp.message.register(logs_command, F.text == '/logs')
+        dp.message.register(stats_command, F.text == '/stats')
+        dp.message.register(set_command, F.text.startswith('/set'))
 
         # Callback кнопок
         dp.callback_query.register(back_to_main, F.data == "back_to_main")
