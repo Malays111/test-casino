@@ -22,7 +22,12 @@ COPY . .
 # Создаем непривилегированного пользователя
 RUN useradd --create-home --shell /bin/bash app \
     && chown -R app:app /app
+
+# Переключаемся на непривилегированного пользователя
 USER app
+
+# Создаем директорию для базы данных
+RUN mkdir -p /app/data
 
 # Запускаем приложение
 CMD ["python", "app.py"]

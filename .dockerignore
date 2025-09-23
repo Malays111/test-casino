@@ -64,3 +64,6 @@ start.sh
 
 # Backup files
 *.backup
+
+# Railway specific
+railway.toml
