@@ -4,12 +4,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import Command
 from aiogram.filters.state import StateFilter
-from config import TELEGRAM_TOKEN, DEPOSIT_AMOUNTS, CASINO_NAME, DUEL_FAQ_URL, DICE_FAQ_URL, BASKETBALL_FAQ_URL, SLOTS_FAQ_URL, BLACKJACK_FAQ_URL, DARTS_FAQ_URL, BACKGROUND_IMAGE_URL, ADMIN_IDS, REFERRAL_BONUS, REFERRAL_MIN_DEPOSIT, DAILY_TASKS, GROUPS, WEBHOOK_URL
+from config import TELEGRAM_TOKEN, DEPOSIT_AMOUNTS, CASINO_NAME, DUEL_FAQ_URL, DICE_FAQ_URL, BASKETBALL_FAQ_URL, SLOTS_FAQ_URL, BLACKJACK_FAQ_URL, DARTS_FAQ_URL, BACKGROUND_IMAGE_URL, ADMIN_IDS, REFERRAL_BONUS, REFERRAL_MIN_DEPOSIT, DAILY_TASKS, GROUPS
 
 # URL изображений для результатов игр
 WIN_IMAGE_URL = "https://www.dropbox.com/scl/fi/7g0gaxdpd9yib3njcvknv/winsvanish.png?rlkey=gkm3ifwgtlndkelab9mqla57h&st=ym57ciur&dl=0"
 LOSE_IMAGE_URL = "https://www.dropbox.com/scl/fi/7djvu9ovgiy5yxgx8wi3i/losevanish.png?rlkey=1tjmth9haf4dcjnnfcba6kyt3&st=p10ekrvb&dl=0"
-from async_database import async_db
+from async_database import AsyncDatabase
+
+# Создаем экземпляр базы данных
+async_db = AsyncDatabase()
 from crypto_bot import crypto_bot
 import asyncio
 import random
@@ -231,33 +234,6 @@ async def async_update_payment_status(invoice_id, status):
     """Обновление статуса платежа"""
     await async_db.update_payment_status(invoice_id, status)
 
-# Функция автоматической проверки платежей
-async def auto_check_payments():
-    """Фоновая задача для автоматической проверки всех pending платежей"""
-    while True:
-        try:
-            # Получаем всех пользователей с pending платежами
-            # Используем прямой SQL запрос для получения всех пользователей с pending платежами
-            pending_users = await asyncio.to_thread(
-                async_db._execute_query,
-                "SELECT DISTINCT u.telegram_id FROM users u JOIN payments p ON u.id = p.user_id WHERE p.status = 'pending'",
-                fetchall=True
-            )
-
-            if pending_users:
-                for (telegram_id,) in pending_users:
-                    try:
-                        # Проверяем pending платежи пользователя
-                        await check_pending_payments(telegram_id)
-                    except Exception as e:
-                        pass  # Игнорируем ошибки для снижения нагрузки
-
-            # Ждем 3 секунды перед следующей проверкой
-            await asyncio.sleep(3)
-
-        except Exception as e:
-            await asyncio.sleep(3)  # Ждем 3 секунды при ошибке
-
 # Функция предварительной загрузки данных
 async def preload_data():
     """Предварительная загрузка часто используемых данных для ускорения работы"""
@@ -281,20 +257,7 @@ async def preload_data():
         # Запускаем обработчик очереди сообщений в группы
         asyncio.create_task(process_group_message_queue())
 
-        # Запускаем автоматическую проверку платежей
-        asyncio.create_task(auto_check_payments())
-
-        # Настраиваем webhook для CryptoBot (если URL указан)
-        if WEBHOOK_URL:
-            try:
-                print(f"🔗 Настройка webhook: {WEBHOOK_URL}")
-                webhook_result = crypto_bot.set_webhook(WEBHOOK_URL)
-                if webhook_result:
-                    print("✅ Webhook успешно настроен")
-                else:
-                    print("⚠️ Не удалось настроить webhook")
-            except Exception as e:
-                print(f"⚠️ Ошибка настройки webhook: {e}")
+        print("✅ Предварительная загрузка завершена")
     except Exception as e:
         print(f"⚠️ Ошибка предзагрузки: {e}")
 
@@ -309,6 +272,7 @@ async def update_top_cache():
                 top_spent_cache = await async_get_top_spent(5)
                 top_referrals_cache = await async_get_top_referrals(5)
                 last_cache_update = current_time
+                print("Кэш топов обновлен")
         await asyncio.sleep(30)  # Проверяем каждые 30 секунд
 
 # Функция получения топов из кэша
@@ -461,6 +425,7 @@ async def process_group_message_queue():
 
                 try:
                     await bot.send_photo(chat_id=group_id, photo=photo_url, caption=caption)
+                    print(f"Результат игры отправлен в группу {group_id}")
                 except Exception as e:
                     print(f"Ошибка отправки в группу {group_id}: {e}")
 
@@ -470,6 +435,7 @@ async def process_group_message_queue():
 
                 try:
                     await bot.send_message(chat_id=group_id, text=text)
+                    print(f"Результат вывода отправлен в группу {group_id}")
                 except Exception as e:
                     print(f"Ошибка отправки в VIP группу {group_id}: {e}")
 
@@ -630,8 +596,13 @@ def get_admin_panel():
 
 # Кнопки пополнения
 def get_deposit_menu():
-    # Возвращаем пустую клавиатуру вместо кнопки "Назад"
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+    buttons = [InlineKeyboardButton(text=f"💲 {amount}$", callback_data=f"dep_{amount}") for amount in DEPOSIT_AMOUNTS]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [buttons[0], buttons[1]],
+        [buttons[2], buttons[3]],
+        [InlineKeyboardButton(text="📝 Ввести сумму", callback_data="dep_custom")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main")]
+    ])
     return keyboard
 
 # Кнопка назад
@@ -656,8 +627,7 @@ def get_games_menu():
     return keyboard
 
 def get_deposit_back_button():
-    # Возвращаем пустую клавиатуру вместо кнопки "Назад"
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="deposit")]])
     return keyboard
 
 # Меню групп
@@ -882,10 +852,6 @@ async def panel_command(message: types.Message):
 • <code>/getgroup</code> - посмотреть текущую группу
 • <code>/getvip</code> - посмотреть текущую VIP группу
 
-<b>🔗 Webhook:</b>
-• <code>/setwebhook https://example.com/api/webhook</code> - установить URL для webhook
-• <code>/getwebhook</code> - посмотреть текущий webhook URL
-
 <b>🎫 Промокоды:</b>
 • <code>/createpromo WELCOME 5.0 100</code> - создать промокод
 • <code>/listpromo</code> - список всех промокодов
@@ -894,8 +860,7 @@ async def panel_command(message: types.Message):
 • Выдача денег: <code>/give @username сумма</code>
 • Установка баланса: <code>/set @username сумма</code>
 • Создание промокода: <code>/createpromo КОД СУММА МАКС_АКТИВАЦИЙ</code>
-• Установка группы: <code>/setgroup ID_ГРУППЫ</code>
-• Установка webhook: <code>/setwebhook URL</code>"""
+• Установка группы: <code>/setgroup ID_ГРУППЫ</code>"""
 
     await message.reply(panel_text, reply_markup=get_admin_panel(), parse_mode="HTML")
 
@@ -1003,41 +968,6 @@ async def getgroups_command(message: types.Message):
     response += "• <code>/getgroups</code> - показать текущие настройки"
 
     await message.reply(response, parse_mode="HTML")
-
-# Обработчик /setwebhook для админов - установка webhook URL
-async def setwebhook_command(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    args = message.text.split()
-    if len(args) != 2:
-        await message.reply("Использование: /setwebhook <URL>\nПример: /setwebhook https://example.com/api/webhook")
-        return
-
-    webhook_url = args[1]
-
-    try:
-        result = crypto_bot.set_webhook(webhook_url)
-        if result:
-            # Обновляем URL в config
-            import config
-            config.WEBHOOK_URL = webhook_url
-
-            await message.reply(f"✅ Webhook установлен: {webhook_url}")
-        else:
-            await message.reply("❌ Не удалось установить webhook")
-    except Exception as e:
-        await message.reply(f"❌ Ошибка установки webhook: {e}")
-
-# Обработчик /getwebhook для админов - проверка текущего webhook
-async def getwebhook_command(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    if WEBHOOK_URL:
-        await message.reply(f"🔗 Текущий webhook URL: {WEBHOOK_URL}")
-    else:
-        await message.reply("❌ Webhook не установлен")
 
 # Обработчик /createpromo для админов - создание промокода
 async def createpromo_command(message: types.Message):
@@ -2355,6 +2285,7 @@ async def process_basketball_prediction(callback_query: types.CallbackQuery, pre
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
+            print("Результат баскетбола отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -2750,6 +2681,7 @@ async def blackjack_hit_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
                 photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
                 await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
+                print("Результат blackjack отправлен успешно")
             except Exception as e:
                 print(f"Ошибка отправки в группу: {e}")
                 pass
@@ -2861,7 +2793,9 @@ async def blackjack_stand_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
+            print("Результат blackjack отправлен успешно")
         except Exception as e:
+            print(f"Ошибка отправки в группу: {e}")
             pass
     else:
         print("Группа для результатов не установлена")
@@ -2938,6 +2872,7 @@ async def slots_spin_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
+            print("Результат слотов отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -3119,6 +3054,7 @@ async def duel_confirm_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
+            print("Результат дуэли отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -3170,6 +3106,7 @@ async def duel_confirm_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
+            print("Результат баскетбола отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -3179,24 +3116,16 @@ async def duel_confirm_handler(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 # Обработчик кнопки "💰 Пополнить"
-async def deposit_handler(callback_query: types.CallbackQuery, state: FSMContext):
-    await state.set_state(DepositStates.waiting_for_amount)
+async def deposit_handler(callback_query: types.CallbackQuery):
+    deposit_text = """💰 Выберите сумму пополнения:
 
-    deposit_text = """💰 Пополнение баланса
-
-📝 Введите сумму пополнения в $:
-
-<i>Например: 5, 10.5, 50</i>"""
+Быстрые суммы:"""
 
     try:
-        media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=deposit_text, parse_mode="HTML")
+        media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=deposit_text)
         await callback_query.message.edit_media(media=media, reply_markup=get_deposit_menu())
-        # Сохраняем ID сообщения для последующего редактирования
-        await state.update_data(deposit_message_id=callback_query.message.message_id, deposit_chat_id=callback_query.message.chat.id)
     except:
-        new_msg = await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=deposit_text, reply_markup=get_deposit_menu(), parse_mode="HTML")
-        # Сохраняем ID нового сообщения для последующего редактирования
-        await state.update_data(deposit_message_id=new_msg.message_id, deposit_chat_id=new_msg.chat.id)
+        await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=deposit_text, reply_markup=get_deposit_menu())
     await callback_query.answer()
 
 # Обработчик быстрых сумм
@@ -3235,11 +3164,6 @@ async def process_custom_amount(message: types.Message, state: FSMContext):
             await message.answer("❌ Сумма должна быть больше 0", reply_markup=get_deposit_back_button())
             return
 
-        # Получаем данные состояния для правильного редактирования сообщения
-        state_data = await state.get_data()
-        deposit_message_id = state_data.get('deposit_message_id')
-        deposit_chat_id = state_data.get('deposit_chat_id')
-
         # Завершаем состояние
         await state.clear()
 
@@ -3251,38 +3175,16 @@ async def process_custom_amount(message: types.Message, state: FSMContext):
 
         fake_callback = FakeCallback(message)
         try:
-            # Показываем промежуточное подтверждение
-            confirm_text = f"""💰 Пополнение баланса
-
-✅ Сумма принята: {amount}$
-⏳ Создание платежа..."""
-
-            try:
-                media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=confirm_text, parse_mode="HTML")
-                # Используем правильный ID сообщения депозита
-                if deposit_message_id and deposit_chat_id:
-                    await bot.edit_message_media(
-                        chat_id=deposit_chat_id,
-                        message_id=deposit_message_id,
-                        media=media,
-                        reply_markup=get_deposit_menu()
-                    )
-                else:
-                    await message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=confirm_text, reply_markup=get_deposit_menu(), parse_mode="HTML")
-            except:
-                await message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=confirm_text, reply_markup=get_deposit_menu(), parse_mode="HTML")
-
-            await process_deposit(fake_callback, amount, state)
-        except Exception as e:
-            print(f"Ошибка создания платежа: {e}")
-            await message.answer("❌ Ошибка создания платежа. Попробуйте позже.", reply_markup=get_deposit_back_button())
+            await process_deposit(fake_callback, amount)
+        except:
+            await message.answer(f"✅ Пополнение на {amount}$ создано", reply_markup=get_main_menu())
 
     except ValueError as e:
         print(f"Ошибка парсинга: {e}")
         await message.answer("❌ Введите корректную сумму (например: 5, 5.5, 5$)", reply_markup=get_deposit_back_button())
 
 # Процесс создания платежа
-async def process_deposit(callback_query, amount, state=None):
+async def process_deposit(callback_query, amount):
     user_telegram_id = callback_query.from_user.id
     user_db = await async_get_user(user_telegram_id)
 
@@ -3312,18 +3214,8 @@ async def process_deposit(callback_query, amount, state=None):
         return
 
     invoice_data = invoice['result']
-    invoice_id = invoice_data.get('invoice_id')
-    pay_url = invoice_data.get('pay_url')
-
-    if not invoice_id or not pay_url:
-        try:
-            if hasattr(callback_query, 'message') and callback_query.message:
-                await callback_query.message.answer("❌ Ошибка создания инвойса: отсутствуют необходимые данные", reply_markup=get_back_button())
-            else:
-                await callback_query.message.answer("❌ Ошибка создания инвойса: отсутствуют необходимые данные", reply_markup=get_back_button())
-        except:
-            await callback_query.message.answer("❌ Ошибка создания инвойса: отсутствуют необходимые данные", reply_markup=get_back_button())
-        return
+    invoice_id = invoice_data['invoice_id']
+    pay_url = invoice_data['pay_url']
 
     # Сохраняем платеж в БД
     await async_db.create_payment(user_id, amount, invoice_id)
@@ -3331,12 +3223,13 @@ async def process_deposit(callback_query, amount, state=None):
     # Отправляем чек пользователю
     pay_text = f"""💰 Пополнение баланса на {amount}$
 
-✅ Сумма принята: {amount}$
 Для оплаты перейдите по кнопке ниже:
 После оплаты средства будут автоматически зачислены на ваш баланс."""
 
     pay_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💳 Оплатить", url=pay_url)]
+        [InlineKeyboardButton(text="💳 Оплатить", url=pay_url)],
+        [InlineKeyboardButton(text="🔄 Проверить оплату", callback_data=f"check_{invoice_id}")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="deposit")]
     ])
 
     # Проверяем, можем ли мы редактировать сообщение
@@ -3344,9 +3237,6 @@ async def process_deposit(callback_query, amount, state=None):
         if hasattr(callback_query, 'message') and callback_query.message:
             media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=pay_text, parse_mode="Markdown")
             await callback_query.message.edit_media(media=media, reply_markup=pay_keyboard)
-            # Сохраняем message_id для последующего обновления при успешной оплате
-            if state:
-                await state.update_data(payment_message_id=callback_query.message.message_id, payment_chat_id=callback_query.message.chat.id, payment_invoice_id=invoice_id)
         else:
             await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard, parse_mode="Markdown")
     except:
@@ -3874,7 +3764,8 @@ async def withdraw_amount_handler(message: types.Message, state: FSMContext):
 💲 {winnings_label}: {winnings}"""
                 print(f"Отправка сообщения в группу {vip_group_id} с текстом: {group_text}")
                 result = await bot.send_message(chat_id=vip_group_id, text=group_text)
-                pass
+                print(f"Результат отправки: {result}")
+                print("Результат вывода отправлен успешно")
             except Exception as e:
                 print(f"Ошибка отправки в VIP группу: {e}")
                 import traceback
@@ -3906,8 +3797,9 @@ async def process_payment_async(telegram_id, amount):
             await async_mark_referral_bonus_given(telegram_id)
             print(f"Реферальный бонус начислен асинхронно: referrer_id={referrer_id}, bonus={referral_bonus}, deposit_amount={amount}")
 
+        print(f"Средства начислены асинхронно: telegram_id={telegram_id}, amount={amount}")
     except Exception as e:
-        pass  # Игнорируем ошибки для снижения нагрузки
+        print(f"Ошибка асинхронной обработки платежа: {e}")
 
 async def async_mark_referral_bonus_given(telegram_id):
     """Отметка реферального бонуса как начисленного"""
@@ -3918,31 +3810,22 @@ async def check_pending_payments(telegram_id):
     pending_payments = await async_get_pending_payments(telegram_id)
 
     for (invoice_id,) in pending_payments:
-        try:
-            # Проверяем статус инвойса
-            invoices_data = crypto_bot.get_invoices([invoice_id])
+        # Проверяем статус инвойса
+        invoices_data = crypto_bot.get_invoices([invoice_id])
 
-            if invoices_data and invoices_data.get('result') and invoices_data['result'].get('items'):
-                invoice_item = invoices_data['result']['items'][0]
-                invoice_status = invoice_item['status']
+        if invoices_data and invoices_data.get('result') and invoices_data['result'].get('items'):
+            invoice_item = invoices_data['result']['items'][0]
+            invoice_status = invoice_item['status']
 
-                if invoice_status == 'paid':
-                    # Получаем данные платежа асинхронно
-                    amount = await async_get_payment_amount_by_invoice(invoice_id)
+            if invoice_status == 'paid':
+                # Получаем данные платежа асинхронно
+                amount = await async_get_payment_amount_by_invoice(invoice_id)
 
-                    if amount is not None:
-                        # Автоматически зачисляем средства без пользовательского вмешательства
-                        await process_payment_async(telegram_id, amount)
-                        await async_update_payment_status(invoice_id, 'paid')
-
-                        # Обновляем сообщение платежа на успешное
-                        await update_payment_message_success(invoice_id, telegram_id, amount)
-
-            # Добавляем задержку между запросами к API
-            await asyncio.sleep(1)
-
-        except Exception as e:
-            pass  # Игнорируем ошибки для снижения нагрузки
+                if amount is not None:
+                    # Запускаем асинхронную обработку платежа
+                    asyncio.create_task(process_payment_async(telegram_id, amount))
+                    await async_update_payment_status(invoice_id, 'paid')
+                    print(f"Платеж отправлен на асинхронную обработку: telegram_id={telegram_id}, amount={amount}")
 
 # Заглушка для остальных кнопок
 async def other_callbacks(callback_query: types.CallbackQuery):
@@ -4034,6 +3917,7 @@ async def dice_color_handler(callback_query: types.CallbackQuery):
 💲 {winnings_label}: {winnings}"""
             photo_url = WIN_IMAGE_URL if winnings_label == "Выигрыш" else LOSE_IMAGE_URL
             await bot.send_photo(chat_id=results_group_id, photo=photo_url, caption=group_text)
+            print("Результат кубиков отправлен успешно")
         except Exception as e:
             print(f"Ошибка отправки в группу: {e}")
             pass
@@ -4197,8 +4081,6 @@ def setup_handlers():
         dp.message.register(getgroup_command, Command(commands=['getgroup']))
         dp.message.register(getvip_command, Command(commands=['getvip']))
         dp.message.register(getgroups_command, Command(commands=['getgroups']))
-        dp.message.register(setwebhook_command, Command(commands=['setwebhook']))
-        dp.message.register(getwebhook_command, Command(commands=['getwebhook']))
         dp.message.register(createpromo_command, Command(commands=['createpromo']))
         dp.message.register(listpromo_command, Command(commands=['listpromo']))
         dp.message.register(logs_command, Command(commands=['logs']))
@@ -4243,6 +4125,7 @@ def setup_handlers():
         dp.callback_query.register(withdraw_referral_handler, lambda c: c.data == "withdraw_referral")
         dp.callback_query.register(deposit_handler, lambda c: c.data == "deposit")
         dp.callback_query.register(deposit_amount_handler, lambda c: c.data.startswith("dep_"))
+        dp.callback_query.register(check_payment, lambda c: c.data.startswith("check_"))
         dp.callback_query.register(withdraw_handler, lambda c: c.data == "withdraw")
         dp.callback_query.register(groups_handler, lambda c: c.data == "groups")
         dp.callback_query.register(promo_codes_handler, lambda c: c.data == "promo_codes")
@@ -4296,117 +4179,6 @@ def setup_handlers():
 
         # Обработчики промокодов
         dp.message.register(promo_code_handler, StateFilter(PromoStates.waiting_for_promo_code))
-
-# Функция обновления сообщения платежа на успешное
-async def update_payment_message_success(invoice_id, telegram_id, amount, message_id=None, chat_id=None):
-    """Обновляет сообщение с платежа на успешное и перенаправляет в главное меню"""
-    try:
-        # Получаем платеж из БД для получения суммы и message_id
-        payment = await async_get_payment_by_invoice(invoice_id)
-        if not payment:
-            print(f"Платеж не найден для обновления сообщения: invoice_id={invoice_id}")
-            return
-
-        user_id, db_amount, status, db_message_id, db_chat_id = payment
-        final_amount = amount if amount is not None else db_amount
-
-        # Используем message_id и chat_id из БД, если они не переданы как параметры
-        final_message_id = message_id if message_id is not None else db_message_id
-        final_chat_id = chat_id if chat_id is not None else db_chat_id
-
-        # Получаем актуальный баланс пользователя
-        balance, referral_balance = await get_cached_balance(telegram_id)
-
-        # Создаем успешное сообщение
-        success_text = f"""✅ <b>ОПЛАТА УСПЕШНО ПОДТВЕРЖДЕНА!</b>
-
-💰 Сумма: <code>{final_amount}$</code>
-💎 Средства зачислены на ваш баланс
-
-<i>Добро пожаловать в главное меню!</i>"""
-
-        # Если есть message_id, редактируем существующее сообщение
-        if final_message_id and final_chat_id:
-            try:
-                media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=success_text, parse_mode="HTML")
-                await bot.edit_message_media(
-                    chat_id=final_chat_id,
-                    message_id=final_message_id,
-                    media=media,
-                    reply_markup=get_main_menu()
-                )
-            except Exception as e:
-                print(f"Ошибка редактирования сообщения платежа: {e}")
-                # Если редактирование не удалось, отправляем новое сообщение
-                await bot.send_message(
-                    chat_id=telegram_id,
-                    text=success_text,
-                    parse_mode="HTML"
-                )
-        else:
-            # Отправляем новое сообщение с уведомлением
-            await bot.send_message(
-                chat_id=telegram_id,
-                text=success_text,
-                parse_mode="HTML"
-            )
-
-    except Exception as e:
-        print(f"Ошибка обновления сообщения платежа: {e}")
-
-# Функция обработки webhook платежей от CryptoBot
-async def process_webhook_payment(invoice_id, status, amount=None):
-    """Обработка webhook уведомлений о платежах от CryptoBot"""
-    try:
-        print(f"Получен webhook: invoice_id={invoice_id}, status={status}, amount={amount}")
-
-        # Получаем платеж из БД по invoice_id
-        payment = await async_get_payment_by_invoice(invoice_id)
-
-        if not payment:
-            print(f"Платеж не найден в БД: invoice_id={invoice_id}")
-            return {"success": False, "error": "Payment not found"}
-
-        user_id, db_amount, payment_status = payment
-        print(f"Найден платеж: user_id={user_id}, amount={db_amount}, status={payment_status}")
-
-        # Если платеж уже обработан, игнорируем
-        if payment_status == 'paid':
-            print(f"Платеж уже обработан: invoice_id={invoice_id}")
-            return {"success": True, "message": "Payment already processed"}
-
-        # Если статус не 'paid', игнорируем
-        if status != 'paid':
-            print(f"Платеж не подтвержден: invoice_id={invoice_id}, status={status}")
-            return {"success": False, "error": f"Payment status is {status}, not paid"}
-
-        # Получаем telegram_id по user_id
-        telegram_id = await async_get_telegram_id_by_user_id(user_id)
-
-        if not telegram_id:
-            print(f"Пользователь не найден: user_id={user_id}")
-            return {"success": False, "error": "User not found"}
-
-        print(f"Найден telegram_id: {telegram_id}")
-
-        # Используем сумму из webhook если она предоставлена, иначе из БД
-        final_amount = amount if amount is not None else db_amount
-        print(f"Финальная сумма для зачисления: {final_amount}")
-
-        # Автоматически зачисляем средства
-        await process_payment_async(telegram_id, final_amount)
-        await async_update_payment_status(invoice_id, 'paid')
-
-        print(f"Средства успешно зачислены: telegram_id={telegram_id}, amount={final_amount}")
-
-        # Обновляем сообщение платежа на успешное
-        await update_payment_message_success(invoice_id, telegram_id, final_amount)
-
-        return {"success": True, "message": f"Payment processed successfully: {final_amount}$"}
-
-    except Exception as e:
-        print(f"Ошибка обработки webhook: {e}")
-        return {"success": False, "error": str(e)}
 
 # Вызываем регистрацию обработчиков
 setup_handlers()

@@ -2,7 +2,6 @@ import sqlite3
 import asyncio
 from typing import Optional, Tuple, List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor
-from config import REFERRAL_LEVELS
 
 class AsyncDatabase:
     def __init__(self, db_name="casino.db"):
@@ -68,16 +67,6 @@ class AsyncDatabase:
 
         try:
             await asyncio.to_thread(self._execute_query, "ALTER TABLE users ADD COLUMN last_daily_task_completed DATE", commit=True)
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            await asyncio.to_thread(self._execute_query, "ALTER TABLE users ADD COLUMN referral_level INTEGER DEFAULT 1", commit=True)
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            await asyncio.to_thread(self._execute_query, "ALTER TABLE users ADD COLUMN last_login_date DATE", commit=True)
         except sqlite3.OperationalError:
             pass
 
@@ -166,16 +155,12 @@ class AsyncDatabase:
 
         # Инициализация настроек по умолчанию
         default_settings = [
-            ('duel_house_advantage', 51.0),
-            ('dice_house_advantage', 83.33),
-            ('basketball_house_advantage', 51.0),
-            ('slots_house_advantage', 90.0),
-            ('blackjack_house_advantage', 52.0),
+            ('duel_win_chance', 25.0),
+            ('dice_win_chance', 30.0),
+            ('basketball_win_chance', 45.0),
             ('duel_multiplier', 1.8),
             ('dice_multiplier', 5.0),
-            ('basketball_multiplier', 1.5),
-            ('slots_multiplier', 8.0),
-            ('blackjack_multiplier', 2.0)
+            ('basketball_multiplier', 1.5)
         ]
 
         for key, value in default_settings:
@@ -221,7 +206,7 @@ class AsyncDatabase:
 
     async def get_user(self, telegram_id: int) -> Optional[Tuple]:
         user = await asyncio.to_thread(self._execute_query,
-            "SELECT id, telegram_id, username, balance, referral_count, COALESCE(referral_balance, 0) as referral_balance, COALESCE(total_deposited, 0) as total_deposited, COALESCE(total_spent, 0) as total_spent, COALESCE(games_played, 0) as games_played, referrer_id, referral_bonus_given, COALESCE(referral_level, 1) as referral_level, last_daily_task_completed, created_at FROM users WHERE telegram_id = ?",
+            "SELECT id, telegram_id, username, balance, referral_count, COALESCE(referral_balance, 0) as referral_balance, COALESCE(total_deposited, 0) as total_deposited, COALESCE(total_spent, 0) as total_spent, COALESCE(games_played, 0) as games_played, referrer_id, referral_bonus_given, last_daily_task_completed, created_at FROM users WHERE telegram_id = ?",
             (telegram_id,), fetchone=True)
 
         if user:
@@ -240,7 +225,7 @@ class AsyncDatabase:
 
     async def get_user_by_username(self, username: str) -> Optional[Tuple]:
         user = await asyncio.to_thread(self._execute_query,
-            "SELECT id, telegram_id, username, balance, referral_count, COALESCE(referral_balance, 0) as referral_balance, COALESCE(total_deposited, 0) as total_deposited, COALESCE(total_spent, 0) as total_spent, COALESCE(games_played, 0) as games_played, referrer_id, referral_bonus_given, COALESCE(referral_level, 1) as referral_level, last_daily_task_completed, created_at FROM users WHERE username = ?",
+            "SELECT id, telegram_id, username, balance, referral_count, COALESCE(referral_balance, 0) as referral_balance, COALESCE(total_deposited, 0) as total_deposited, COALESCE(total_spent, 0) as total_spent, COALESCE(games_played, 0) as games_played, referrer_id, referral_bonus_given, last_daily_task_completed, created_at FROM users WHERE username = ?",
             (username,), fetchone=True)
 
         if user:
@@ -257,8 +242,7 @@ class AsyncDatabase:
             user = tuple(user)
         return user
 
-    async def create_user(self, telegram_id: int, username: str, referrer_id: Optional[int] = None) -> Dict[str, Any]:
-        level_up_info = None
+    async def create_user(self, telegram_id: int, username: str, referrer_id: Optional[int] = None):
         # Проверяем, существует ли пользователь
         existing_user = await asyncio.to_thread(self._execute_query,
             "SELECT referrer_id FROM users WHERE telegram_id = ?", (telegram_id,), fetchone=True)
@@ -275,17 +259,6 @@ class AsyncDatabase:
                 await asyncio.to_thread(self._execute_query,
                     "UPDATE users SET referral_count = COALESCE(referral_count, 0) + 1 WHERE telegram_id = ?",
                     (referrer_id,), commit=True)
-
-                # Обновляем уровень реферала
-                referrer_user = await self.get_user(referrer_id)
-                if referrer_user:
-                    current_count = referrer_user[4] or 0
-                    new_count = current_count + 1
-                    old_level = referrer_user[11] if len(referrer_user) > 11 else 1
-                    new_level, bonus, name = await self.update_referral_level_by_count(referrer_id, new_count)
-                    if new_level > old_level:
-                        level_up_info = {"telegram_id": referrer_id, "new_level": new_level, "bonus": bonus}
-            return {"level_up_info": level_up_info}
         else:
             # Создаем нового пользователя
             try:
@@ -293,33 +266,17 @@ class AsyncDatabase:
                     "INSERT INTO users (telegram_id, username, referrer_id, referral_bonus_given) VALUES (?, ?, ?, 0)",
                     (telegram_id, username, referrer_id), commit=True)
 
-                # Если есть referrer, обновляем его счетчик рефералов и уровень
+                # Если есть referrer, обновляем его счетчик рефералов
                 if referrer_id:
-                    # Получаем текущее количество рефералов
-                    referrer_user = await self.get_user(referrer_id)
-                    if referrer_user:
-                        current_count = referrer_user[4] or 0
-                        new_count = current_count + 1
-
-                        # Обновляем счетчик рефералов
-                        await asyncio.to_thread(self._execute_query,
-                            "UPDATE users SET referral_count = ? WHERE telegram_id = ?",
-                            (new_count, referrer_id), commit=True)
-
-                        # Обновляем уровень реферала
-                        old_level = await self.get_user(referrer_id)
-                        old_level = old_level[11] if old_level and len(old_level) > 11 else 1
-                        new_level, bonus, name = await self.update_referral_level_by_count(referrer_id, new_count)
-                        if new_level > old_level:
-                            level_up_info = {"telegram_id": referrer_id, "new_level": new_level, "bonus": bonus}
+                    await asyncio.to_thread(self._execute_query,
+                        "UPDATE users SET referral_count = COALESCE(referral_count, 0) + 1 WHERE telegram_id = ?",
+                        (referrer_id,), commit=True)
 
             except sqlite3.OperationalError:
                 # Если колонки нет, вставляем без них
                 await asyncio.to_thread(self._execute_query,
                     "INSERT INTO users (telegram_id, username) VALUES (?, ?)",
                     (telegram_id, username), commit=True)
-
-        return {"level_up_info": level_up_info}
 
     async def update_balance(self, telegram_id: int, amount: float):
         try:
@@ -534,76 +491,3 @@ class AsyncDatabase:
             "SELECT amount FROM payments WHERE crypto_bot_invoice_id = ?",
             (invoice_id,), fetchone=True)
         return result[0] if result else None
-
-    async def calculate_referral_level(self, referral_count: int) -> Tuple[int, float, str]:
-        """Расчет уровня реферала на основе количества приглашенных"""
-        from config import REFERRAL_LEVELS
-
-        for level, data in sorted(REFERRAL_LEVELS.items(), reverse=True):
-            if referral_count >= data["required_referrals"]:
-                return level, data["bonus"], data["name"]
-        return 1, REFERRAL_LEVELS[1]["bonus"], REFERRAL_LEVELS[1]["name"]
-
-    async def update_referral_level(self, telegram_id: int) -> Tuple[int, float, str]:
-        """Обновление уровня реферала"""
-        # Получаем текущее количество рефералов
-        user = await self.get_user(telegram_id)
-        if user:
-            referral_count = user[4] or 0  # referral_count
-            level, bonus, name = await self.calculate_referral_level(referral_count)
-
-            # Обновляем уровень
-            await asyncio.to_thread(self._execute_query,
-                "UPDATE users SET referral_level = ? WHERE telegram_id = ?",
-                (level, telegram_id), commit=True)
-            return level, bonus, name
-        return 1, 0.3, "Новичок"
-
-    async def update_referral_level_by_count(self, telegram_id: int, referral_count: int) -> Tuple[int, float, str]:
-        """Обновление уровня реферала по количеству рефералов"""
-        # Получаем старый уровень
-        old_user = await self.get_user(telegram_id)
-        old_level = old_user[11] if old_user and len(old_user) > 11 else 1
-
-        level, bonus, name = await self.calculate_referral_level(referral_count)
-
-        # Обновляем уровень
-        await asyncio.to_thread(self._execute_query,
-            "UPDATE users SET referral_level = ? WHERE telegram_id = ?",
-            (level, telegram_id), commit=True)
-
-        # Если уровень повысился, возвращаем информацию для уведомления
-        if level > old_level:
-            # Импортируем здесь чтобы избежать циклической зависимости
-            from bot import notify_level_up
-            await notify_level_up(telegram_id, level, bonus)
-
-        return level, bonus, name
-
-    async def get_referral_level_info(self, telegram_id: int) -> Optional[Dict[str, Any]]:
-        """Получение информации об уровне реферала"""
-        user = await self.get_user(telegram_id)
-        if user:
-            referral_count = user[4] or 0  # referral_count
-            level, bonus, name = await self.calculate_referral_level(referral_count)
-            from config import REFERRAL_LEVELS
-
-            return {
-                "level": level,
-                "name": name,
-                "bonus": bonus,
-                "referral_count": referral_count,
-                "next_level": level + 1 if level < 10 else None,
-                "next_required": REFERRAL_LEVELS.get(level + 1, {}).get("required_referrals", 0) if level < 10 else 0,
-                "progress": min(100, (referral_count / REFERRAL_LEVELS.get(level + 1, {}).get("required_referrals", referral_count + 1)) * 100) if level < 10 else 100
-            }
-        return None
-
-    async def update_last_login_date(self, telegram_id: int, date_str: str):
-        """Обновление даты последнего входа"""
-        await asyncio.to_thread(self._execute_query,
-            "UPDATE users SET last_login_date = ? WHERE telegram_id = ?",
-            (date_str, telegram_id), commit=True)
-
-# Создаем глобальный экземпляр (инициализация будет в main.py)
-async_db = AsyncDatabase()

@@ -1,15 +1,13 @@
 # Токены ботов
-TELEGRAM_TOKEN = "8398207757:AAHqH5mZSwL7rxx6FGZFu-0ZzfIHQ00_I7M"
+TELEGRAM_TOKEN = "8385343502:AAFxLxYG5OcrhdMlWJgIkZGZcf8zCyoTejY"
 CRYPTO_BOT_TOKEN = "458530:AA2k6GJxJ6VXSa13SjZIVFziqJL4Sgg0oe3"
 
 # API URLs
-CRYPTO_BOT_API = "https://pay.crypt.bot"
-# WEBHOOK_URL = "https://test-casino-taupe.vercel.app/api/crypto-webhook"  # URL для webhook уведомлений (закомментирован из-за ошибки 405)
-WEBHOOK_URL = "https://api.your-casino.com/api/crypto-webhook"  # Custom domain webhook URL
+CRYPTO_BOT_API = "https://pay.crypt.bot/api"
 
 # Кнопки пополнения
+DEPOSIT_AMOUNTS = [5, 10, 15, 20]
 CASINO_NAME = "VanishCasino"
-DEPOSIT_AMOUNTS = []  # Пустой список - стандартные суммы убраны
 
 # Ссылки на FAQ для игр
 DUEL_FAQ_URL = "https://t.me/VanishCasino/10"  # Замените на ссылку для дуэли (кости)
@@ -37,22 +35,9 @@ ADMIN_IDS = [8217088275, 1076328217]  # Замените на ID админов
 REFERRAL_BONUS = 0.3  # 0.3$ за каждого реферала, который пополнил баланс на сумму >= REFERRAL_MIN_DEPOSIT
 REFERRAL_MIN_DEPOSIT = 2.0  # Минимальная сумма пополнения для получения реферального бонуса
 
-# Система уровней рефералов
-REFERRAL_LEVELS = {
-    1: {"bonus": 0.3, "required_referrals": 0, "name": "Новичок"},
-    2: {"bonus": 0.5, "required_referrals": 2, "name": "Бронза"},
-    3: {"bonus": 0.8, "required_referrals": 5, "name": "Серебро"},
-    4: {"bonus": 1.0, "required_referrals": 9, "name": "Золото"},
-    5: {"bonus": 1.5, "required_referrals": 15, "name": "Платина"},
-    6: {"bonus": 2.0, "required_referrals": 25, "name": "Алмаз"},
-    7: {"bonus": 2.5, "required_referrals": 35, "name": "Мастер"},
-    8: {"bonus": 2.9, "required_referrals": 40, "name": "Грандмастер"},
-    9: {"bonus": 3.5, "required_referrals": 45, "name": "Легенда"},
-    10: {"bonus": 5.0, "required_referrals": 100, "name": "БОГ"}
-}
-
 # Ежедневные задания
 DAILY_TASKS = [
+    {"description": "Пригласи 50 друзей", "reward": 20.0, "type": "referrals", "target": 50},
     {"description": "Потрать 15$", "reward": 1.0, "type": "spent", "target": 15.0},
     {"description": "Пополни баланс на 10$", "reward": 5.0, "type": "deposited", "target": 10.0},
     {"description": "Сыграй 10 игр", "reward": 2.0, "type": "games", "target": 10},

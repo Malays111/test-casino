@@ -1,5 +1,4 @@
 import sqlite3
-from config import REFERRAL_LEVELS
 
 class Database:
     def __init__(self, db_name="casino.db"):
@@ -61,11 +60,6 @@ class Database:
 
         try:
             cursor.execute("ALTER TABLE users ADD COLUMN last_daily_task_completed DATE")
-        except sqlite3.OperationalError:
-            pass  # Колонка уже существует
-
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN referral_level INTEGER DEFAULT 1")
         except sqlite3.OperationalError:
             pass  # Колонка уже существует
         
@@ -154,16 +148,12 @@ class Database:
 
         # Инициализация настроек по умолчанию
         default_settings = [
-            ('duel_house_advantage', 51.0),
-            ('dice_house_advantage', 83.33),
-            ('basketball_house_advantage', 51.0),
-            ('slots_house_advantage', 90.0),
-            ('blackjack_house_advantage', 52.0),
+            ('duel_win_chance', 25.0),
+            ('dice_win_chance', 30.0),
+            ('basketball_win_chance', 45.0),
             ('duel_multiplier', 1.8),
             ('dice_multiplier', 5.0),
-            ('basketball_multiplier', 1.5),
-            ('slots_multiplier', 8.0),
-            ('blackjack_multiplier', 2.0)
+            ('basketball_multiplier', 1.5)
         ]
 
         for key, value in default_settings:
@@ -201,7 +191,7 @@ class Database:
     def get_user(self, telegram_id):
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
-        cursor.execute("SELECT id, telegram_id, username, balance, referral_count, COALESCE(referral_balance, 0) as referral_balance, COALESCE(total_deposited, 0) as total_deposited, COALESCE(total_spent, 0) as total_spent, COALESCE(games_played, 0) as games_played, referrer_id, referral_bonus_given, COALESCE(referral_level, 1) as referral_level, last_daily_task_completed, created_at FROM users WHERE telegram_id = ?", (telegram_id,))
+        cursor.execute("SELECT id, telegram_id, username, balance, referral_count, COALESCE(referral_balance, 0) as referral_balance, COALESCE(total_deposited, 0) as total_deposited, COALESCE(total_spent, 0) as total_spent, COALESCE(games_played, 0) as games_played, referrer_id, referral_bonus_given, last_daily_task_completed, created_at FROM users WHERE telegram_id = ?", (telegram_id,))
         user = cursor.fetchone()
         conn.close()
         if user:
@@ -216,12 +206,11 @@ class Database:
             except (ValueError, TypeError):
                 user[5] = 0.0
             user = tuple(user)
-        return user  # (id, telegram_id, username, balance, referral_count, referral_balance, referrer_id, referral_bonus_given, referral_level, created_at)
+        return user  # (id, telegram_id, username, balance, referral_count, referral_balance, referrer_id, referral_bonus_given, created_at)
     
     def create_user(self, telegram_id, username, referrer_id=None):
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
-        level_up_info = None
 
         # Проверяем, существует ли пользователь
         cursor.execute("SELECT referrer_id FROM users WHERE telegram_id = ?", (telegram_id,))
@@ -241,25 +230,6 @@ class Database:
                     "UPDATE users SET referral_count = COALESCE(referral_count, 0) + 1 WHERE telegram_id = ?",
                     (referrer_id,)
                 )
-                # Проверяем повышение уровня реферала
-                cursor.execute("SELECT referral_count, referral_level FROM users WHERE telegram_id = ?", (referrer_id,))
-                referrer_result = cursor.fetchone()
-                if referrer_result:
-                    new_count = referrer_result[0] or 0
-                    old_level = referrer_result[1] or 1
-                    new_level, bonus, name = self.calculate_referral_level(new_count)
-                    if new_level > old_level:
-                        cursor.execute(
-                            "UPDATE users SET referral_level = ? WHERE telegram_id = ?",
-                            (new_level, referrer_id)
-                        )
-                        level_up_info = {
-                            "telegram_id": referrer_id,
-                            "old_level": old_level,
-                            "new_level": new_level,
-                            "bonus": bonus,
-                            "name": name
-                        }
             # Не делаем ничего, если referrer_id уже установлен
         else:
             # Создаем нового пользователя
@@ -270,41 +240,12 @@ class Database:
                 )
                 user_id = cursor.lastrowid
 
-                # Если есть referrer, обновляем его счетчик рефералов и уровень
+                # Если есть referrer, обновляем его счетчик рефералов
                 if referrer_id:
-                    # Получаем текущее количество рефералов
-                    cursor.execute("SELECT referral_count, referral_level FROM users WHERE telegram_id = ?", (referrer_id,))
-                    referrer_result = cursor.fetchone()
-                    if referrer_result:
-                        current_count = referrer_result[0] or 0
-                        old_level = referrer_result[1] or 1
-                        new_count = current_count + 1
-
-                        # Обновляем счетчик рефералов
-                        cursor.execute(
-                            "UPDATE users SET referral_count = ? WHERE telegram_id = ?",
-                            (new_count, referrer_id)
-                        )
-
-                        # Обновляем уровень реферала и проверяем повышение
-                        new_level, bonus, name = self.calculate_referral_level(new_count)
-                        if new_level > old_level:
-                            cursor.execute(
-                                "UPDATE users SET referral_level = ? WHERE telegram_id = ?",
-                                (new_level, referrer_id)
-                            )
-                            level_up_info = {
-                                "telegram_id": referrer_id,
-                                "old_level": old_level,
-                                "new_level": new_level,
-                                "bonus": bonus,
-                                "name": name
-                            }
-                        else:
-                            cursor.execute(
-                                "UPDATE users SET referral_level = ? WHERE telegram_id = ?",
-                                (new_level, referrer_id)
-                            )
+                    cursor.execute(
+                        "UPDATE users SET referral_count = COALESCE(referral_count, 0) + 1 WHERE telegram_id = ?",
+                        (referrer_id,)
+                    )
 
             except sqlite3.OperationalError:
                 # Если колонки нет, вставляем без них
@@ -315,7 +256,6 @@ class Database:
 
         conn.commit()
         conn.close()
-        return {"level_up_info": level_up_info} if level_up_info else None
     
     def update_balance(self, telegram_id, amount):
         print(f"Обновление баланса: telegram_id={telegram_id}, amount={amount}")  # Отладка
@@ -691,85 +631,5 @@ class Database:
         result = cursor.fetchall()
         conn.close()
         return result
-
-    def calculate_referral_level(self, referral_count):
-        """Расчет уровня реферала на основе количества приглашенных"""
-        from config import REFERRAL_LEVELS
-
-        for level, data in sorted(REFERRAL_LEVELS.items(), reverse=True):
-            if referral_count >= data["required_referrals"]:
-                return level, data["bonus"], data["name"]
-        return 1, REFERRAL_LEVELS[1]["bonus"], REFERRAL_LEVELS[1]["name"]
-
-    def update_referral_level(self, telegram_id):
-        """Обновление уровня реферала"""
-        conn = sqlite3.connect(self.db_name)
-        cursor = conn.cursor()
-
-        # Получаем текущее количество рефералов и уровень
-        cursor.execute("SELECT referral_count, referral_level FROM users WHERE telegram_id = ?", (telegram_id,))
-        result = cursor.fetchone()
-
-        if result:
-            referral_count = result[0] or 0
-            old_level = result[1] or 1
-            level, bonus, name = self.calculate_referral_level(referral_count)
-
-            # Обновляем уровень
-            cursor.execute(
-                "UPDATE users SET referral_level = ? WHERE telegram_id = ?",
-                (level, telegram_id)
-            )
-
-            conn.commit()
-            conn.close()
-
-            # Проверяем, повысился ли уровень
-            if level > old_level:
-                return {
-                    "level": level,
-                    "bonus": bonus,
-                    "name": name,
-                    "old_level": old_level,
-                    "new_level": level,
-                    "level_up": True
-                }
-            else:
-                return {
-                    "level": level,
-                    "bonus": bonus,
-                    "name": name,
-                    "old_level": old_level,
-                    "new_level": level,
-                    "level_up": False
-                }
-
-        conn.close()
-        return {
-            "level": 1,
-            "bonus": 0.3,
-            "name": "Новичок",
-            "old_level": 1,
-            "new_level": 1,
-            "level_up": False
-        }
-
-    def get_referral_level_info(self, telegram_id):
-        """Получение информации об уровне реферала"""
-        user_data = self.get_user(telegram_id)
-        if user_data:
-            referral_count = user_data[4] or 0  # referral_count
-            level, bonus, name = self.calculate_referral_level(referral_count)
-            return {
-                "level": level,
-                "name": name,
-                "bonus": bonus,
-                "referral_count": referral_count,
-                "next_level": level + 1 if level < 10 else None,
-                "next_required": REFERRAL_LEVELS.get(level + 1, {}).get("required_referrals", 0) if level < 10 else 0,
-                "next_bonus": REFERRAL_LEVELS.get(level + 1, {}).get("bonus", 0) if level < 10 else 0,
-                "progress": min(100, (referral_count / REFERRAL_LEVELS.get(level + 1, {}).get("required_referrals", referral_count + 1)) * 100) if level < 10 else 100
-            }
-        return None
 
 db = Database()
