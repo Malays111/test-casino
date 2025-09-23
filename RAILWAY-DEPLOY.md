@@ -64,7 +64,7 @@ LOG_LEVEL=INFO
 ### railway.toml
 ```toml
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
 
 [deploy]
 healthcheckPath = "/"
@@ -76,16 +76,27 @@ restartPolicyMaxRetries = 10
 processes = ["python app.py"]
 ```
 
-### nixpacks.toml
-```toml
-[phases.setup]
-nixPkgs = ["python311", "gcc"]
+### Dockerfile
+```dockerfile
+FROM python:3.11-slim
 
-[phases.install]
-cmds = ["python -m pip install --upgrade pip", "pip install -r requirements.txt"]
+WORKDIR /app
 
-[start]
-cmd = "python app.py"
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN useradd --create-home --shell /bin/bash app \
+    && chown -R app:app /app
+USER app
+
+CMD ["python", "app.py"]
 ```
 
 ## 📊 Мониторинг

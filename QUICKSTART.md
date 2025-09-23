@@ -6,7 +6,7 @@
 
 ### ✅ Созданные файлы:
 - `railway.toml` - конфигурация для Railway
-- `nixpacks.toml` - настройки сборки для Railway
+- `Dockerfile` - Docker образ для Railway
 - `RAILWAY-DEPLOY.md` - подробная инструкция для Railway
 - `Procfile` - конфигурация для Heroku/PythonAnywhere
 - `runtime.txt` - версия Python (3.11.0)
