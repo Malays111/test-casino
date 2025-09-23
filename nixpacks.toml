@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["python39", "gcc"]
+nixPkgs = ["python311", "gcc"]
 
 [phases.install]
 cmds = ["python -m pip install --upgrade pip", "pip install -r requirements.txt"]
 
 [start]
-cmd = "python simple_server.py"
+cmd = "python app.py"

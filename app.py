@@ -1,35 +1,30 @@
-#!/usr/bin/env python3
-import http.server
-import socketserver
-import json
 import os
+import asyncio
+import logging
+from dotenv import load_dotenv
+from main import run_bot
 
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/api/crypto-webhook':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            response = {"status": "ok", "message": "CryptoBot webhook endpoint is running"}
-            self.wfile.write(json.dumps(response).encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b'{"error": "Not found"}')
+# Загружаем переменные окружения
+load_dotenv()
 
-    def do_POST(self):
-        if self.path == '/api/crypto-webhook':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            response = {"ok": True, "message": "Webhook received"}
-            self.wfile.write(json.dumps(response).encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b'{"error": "Not found"}')
+# Настройка логирования
+logging.basicConfig(
+    level=getattr(logging, os.getenv('LOG_LEVEL', 'INFO')),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-PORT = int(os.environ.get('PORT', 8080))
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
-    print(f"Server running on port {PORT}")
-    httpd.serve_forever()
+async def main():
+    """Основная функция для запуска в продакшене"""
+    try:
+        logger.info("🚀 Запуск VanishCasino Bot в продакшене...")
+        await run_bot()
+    except KeyboardInterrupt:
+        logger.info("🛑 Бот остановлен пользователем")
+    except Exception as e:
+        logger.error(f"❌ Критическая ошибка: {e}")
+        raise
+
+if __name__ == '__main__':
+    # Запускаем бота
+    asyncio.run(main())

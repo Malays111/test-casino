@@ -1,9 +1,9 @@
-from aiogram import types
+from aiogram import types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.filters import Command
-from aiogram.filters.state import StateFilter
+from aiogram import Command
+from aiogram.fsm.context import FSMContext
 from config import TELEGRAM_TOKEN, DEPOSIT_AMOUNTS, CASINO_NAME, DUEL_FAQ_URL, DICE_FAQ_URL, BASKETBALL_FAQ_URL, SLOTS_FAQ_URL, BLACKJACK_FAQ_URL, DARTS_FAQ_URL, BACKGROUND_IMAGE_URL, ADMIN_IDS, REFERRAL_BONUS, REFERRAL_MIN_DEPOSIT, DAILY_TASKS, GROUPS
 
 # URL изображений для результатов игр
@@ -1963,11 +1963,11 @@ async def duel_handler(callback_query: types.CallbackQuery, state: FSMContext):
 💰 Введите ставку в $:"""
 
     try:
-        media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=duel_text, parse_mode="Markdown")
+        media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=duel_text)
         await callback_query.message.edit_media(media=media, reply_markup=get_back_button())
         message_id = callback_query.message.message_id
     except:
-        new_msg = await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=duel_text, reply_markup=get_back_button(), parse_mode="Markdown")
+        new_msg = await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=duel_text, reply_markup=get_back_button())
         message_id = new_msg.message_id
 
     await state.update_data(message_id=message_id, chat_id=callback_query.message.chat.id)
@@ -1990,11 +1990,11 @@ async def dice_handler(callback_query: types.CallbackQuery, state: FSMContext):
 💰 Введите ставку в $:"""
 
     try:
-        media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=dice_text, parse_mode="Markdown")
+        media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=dice_text)
         await callback_query.message.edit_media(media=media, reply_markup=get_back_button())
         message_id = callback_query.message.message_id
     except:
-        new_msg = await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=dice_text, reply_markup=get_back_button(), parse_mode="Markdown")
+        new_msg = await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=dice_text, reply_markup=get_back_button())
         message_id = new_msg.message_id
 
     await state.update_data(message_id=message_id, chat_id=callback_query.message.chat.id)
@@ -3235,16 +3235,16 @@ async def process_deposit(callback_query, amount):
     # Проверяем, можем ли мы редактировать сообщение
     try:
         if hasattr(callback_query, 'message') and callback_query.message:
-            media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=pay_text, parse_mode="Markdown")
+            media = InputMediaPhoto(media=BACKGROUND_IMAGE_URL, caption=pay_text)
             await callback_query.message.edit_media(media=media, reply_markup=pay_keyboard)
         else:
-            await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard, parse_mode="Markdown")
+            await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard)
     except:
         try:
-            await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard, parse_mode="Markdown")
+            await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard)
         except:
             if hasattr(callback_query, 'message') and callback_query.message:
-                await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard, parse_mode="Markdown")
+                await callback_query.message.answer_photo(photo=BACKGROUND_IMAGE_URL, caption=pay_text, reply_markup=pay_keyboard)
 
 # Проверка оплаты - ИСПРАВЛЕННАЯ ВЕРСИЯ
 async def check_payment(callback_query: types.CallbackQuery):
@@ -4072,113 +4072,113 @@ async def game_placeholder_handler(callback_query: types.CallbackQuery):
 def setup_handlers():
     if dp:
         # Команды
-        dp.message.register(start_command, Command(commands=['start', 'restart']))
-        dp.message.register(give_command, Command(commands=['give']))
-        dp.message.register(panel_command, Command(commands=['panel']))
-        dp.message.register(tasks_command, Command(commands=['tasks']))
-        dp.message.register(setgroup_command, Command(commands=['setgroup']))
-        dp.message.register(setvip_command, Command(commands=['setvip']))
-        dp.message.register(getgroup_command, Command(commands=['getgroup']))
-        dp.message.register(getvip_command, Command(commands=['getvip']))
-        dp.message.register(getgroups_command, Command(commands=['getgroups']))
-        dp.message.register(createpromo_command, Command(commands=['createpromo']))
-        dp.message.register(listpromo_command, Command(commands=['listpromo']))
-        dp.message.register(logs_command, Command(commands=['logs']))
-        dp.message.register(stats_command, Command(commands=['stats']))
-        dp.message.register(set_command, Command(commands=['set']))
+        dp.message.register(start_command, Command('start', 'restart'))
+        dp.message.register(give_command, Command('give'))
+        dp.message.register(panel_command, Command('panel'))
+        dp.message.register(tasks_command, Command('tasks'))
+        dp.message.register(setgroup_command, Command('setgroup'))
+        dp.message.register(setvip_command, Command('setvip'))
+        dp.message.register(getgroup_command, Command('getgroup'))
+        dp.message.register(getvip_command, Command('getvip'))
+        dp.message.register(getgroups_command, Command('getgroups'))
+        dp.message.register(createpromo_command, Command('createpromo'))
+        dp.message.register(listpromo_command, Command('listpromo'))
+        dp.message.register(logs_command, Command('logs'))
+        dp.message.register(stats_command, Command('stats'))
+        dp.message.register(set_command, Command('set'))
 
         # Callback кнопок
-        dp.callback_query.register(back_to_main, lambda c: c.data == "back_to_main")
-        dp.callback_query.register(daily_bonus_handler, lambda c: c.data == "daily_bonus")
-        dp.callback_query.register(profile_handler, lambda c: c.data == "profile")
-        dp.callback_query.register(play_handler, lambda c: c.data == "play")
-        dp.callback_query.register(referral_handler, lambda c: c.data == "referral")
-        dp.callback_query.register(rating_handler, lambda c: c.data == "rating")
-        dp.callback_query.register(chances_handler, lambda c: c.data == "chances")
-        dp.callback_query.register(admin_panel_handler, lambda c: c.data == "admin_panel")
-        dp.callback_query.register(admin_chances_handler, lambda c: c.data == "admin_chances")
-        dp.callback_query.register(admin_multiplier_handler, lambda c: c.data == "admin_multiplier")
-        dp.callback_query.register(admin_stats_handler, lambda c: c.data == "admin_stats")
-        dp.callback_query.register(admin_set_balance_handler, lambda c: c.data == "admin_set_balance")
-        dp.callback_query.register(edit_chance_duel_handler, lambda c: c.data == "edit_chance_duel")
-        dp.callback_query.register(edit_chance_dice_handler, lambda c: c.data == "edit_chance_dice")
-        dp.callback_query.register(edit_chance_basketball_handler, lambda c: c.data == "edit_chance_basketball")
-        dp.callback_query.register(edit_chance_slots_handler, lambda c: c.data == "edit_chance_slots")
-        dp.callback_query.register(edit_chance_blackjack_handler, lambda c: c.data == "edit_chance_blackjack")
-        dp.callback_query.register(edit_multiplier_duel_handler, lambda c: c.data == "edit_multiplier_duel")
-        dp.callback_query.register(edit_multiplier_basketball_handler, lambda c: c.data == "edit_multiplier_basketball")
-        dp.callback_query.register(edit_multiplier_slots_handler, lambda c: c.data == "edit_multiplier_slots")
-        dp.callback_query.register(edit_multiplier_dice_handler, lambda c: c.data == "edit_multiplier_dice")
-        dp.callback_query.register(edit_multiplier_blackjack_handler, lambda c: c.data == "edit_multiplier_blackjack")
-        dp.callback_query.register(duel_handler, lambda c: c.data == "game_duel")
-        dp.callback_query.register(dice_handler, lambda c: c.data == "game_dice")
-        dp.callback_query.register(dice_color_handler, lambda c: c.data.startswith("dice_color_"))
-        dp.callback_query.register(basketball_handler, lambda c: c.data == "game_basketball")
-        dp.callback_query.register(basketball_predict_hit_handler, lambda c: c.data.startswith("basketball_predict_hit_"))
-        dp.callback_query.register(slots_handler, lambda c: c.data == "game_slots")
-        dp.callback_query.register(blackjack_handler, lambda c: c.data == "game_blackjack")
-        dp.callback_query.register(slots_spin_handler, lambda c: c.data.startswith("slots_spin_"))
-        dp.callback_query.register(blackjack_hit_handler, lambda c: c.data.startswith("blackjack_hit_"))
-        dp.callback_query.register(blackjack_stand_handler, lambda c: c.data.startswith("blackjack_stand_"))
-        dp.callback_query.register(game_placeholder_handler, lambda c: c.data.startswith("game_") and c.data not in ["game_duel", "game_dice", "game_slots", "game_basketball", "game_blackjack"])
-        dp.callback_query.register(duel_confirm_handler, lambda c: c.data.startswith("duel_confirm_"))
-        dp.callback_query.register(withdraw_referral_handler, lambda c: c.data == "withdraw_referral")
-        dp.callback_query.register(deposit_handler, lambda c: c.data == "deposit")
-        dp.callback_query.register(deposit_amount_handler, lambda c: c.data.startswith("dep_"))
-        dp.callback_query.register(check_payment, lambda c: c.data.startswith("check_"))
-        dp.callback_query.register(withdraw_handler, lambda c: c.data == "withdraw")
-        dp.callback_query.register(groups_handler, lambda c: c.data == "groups")
-        dp.callback_query.register(promo_codes_handler, lambda c: c.data == "promo_codes")
-        dp.callback_query.register(activate_promo_handler, lambda c: c.data == "activate_promo")
+        dp.callback_query.register(back_to_main, F.data == "back_to_main")
+        dp.callback_query.register(daily_bonus_handler, F.data == "daily_bonus")
+        dp.callback_query.register(profile_handler, F.data == "profile")
+        dp.callback_query.register(play_handler, F.data == "play")
+        dp.callback_query.register(referral_handler, F.data == "referral")
+        dp.callback_query.register(rating_handler, F.data == "rating")
+        dp.callback_query.register(chances_handler, F.data == "chances")
+        dp.callback_query.register(admin_panel_handler, F.data == "admin_panel")
+        dp.callback_query.register(admin_chances_handler, F.data == "admin_chances")
+        dp.callback_query.register(admin_multiplier_handler, F.data == "admin_multiplier")
+        dp.callback_query.register(admin_stats_handler, F.data == "admin_stats")
+        dp.callback_query.register(admin_set_balance_handler, F.data == "admin_set_balance")
+        dp.callback_query.register(edit_chance_duel_handler, F.data == "edit_chance_duel")
+        dp.callback_query.register(edit_chance_dice_handler, F.data == "edit_chance_dice")
+        dp.callback_query.register(edit_chance_basketball_handler, F.data == "edit_chance_basketball")
+        dp.callback_query.register(edit_chance_slots_handler, F.data == "edit_chance_slots")
+        dp.callback_query.register(edit_chance_blackjack_handler, F.data == "edit_chance_blackjack")
+        dp.callback_query.register(edit_multiplier_duel_handler, F.data == "edit_multiplier_duel")
+        dp.callback_query.register(edit_multiplier_basketball_handler, F.data == "edit_multiplier_basketball")
+        dp.callback_query.register(edit_multiplier_slots_handler, F.data == "edit_multiplier_slots")
+        dp.callback_query.register(edit_multiplier_dice_handler, F.data == "edit_multiplier_dice")
+        dp.callback_query.register(edit_multiplier_blackjack_handler, F.data == "edit_multiplier_blackjack")
+        dp.callback_query.register(duel_handler, F.data == "game_duel")
+        dp.callback_query.register(dice_handler, F.data == "game_dice")
+        dp.callback_query.register(dice_color_handler, F.data.startswith("dice_color_"))
+        dp.callback_query.register(basketball_handler, F.data == "game_basketball")
+        dp.callback_query.register(basketball_predict_hit_handler, F.data.startswith("basketball_predict_hit_"))
+        dp.callback_query.register(slots_handler, F.data == "game_slots")
+        dp.callback_query.register(blackjack_handler, F.data == "game_blackjack")
+        dp.callback_query.register(slots_spin_handler, F.data.startswith("slots_spin_"))
+        dp.callback_query.register(blackjack_hit_handler, F.data.startswith("blackjack_hit_"))
+        dp.callback_query.register(blackjack_stand_handler, F.data.startswith("blackjack_stand_"))
+        dp.callback_query.register(game_placeholder_handler, F.data.startswith("game_") & ~F.data.in_(["game_duel", "game_dice", "game_slots", "game_basketball", "game_blackjack"]))
+        dp.callback_query.register(duel_confirm_handler, F.data.startswith("duel_confirm_"))
+        dp.callback_query.register(withdraw_referral_handler, F.data == "withdraw_referral")
+        dp.callback_query.register(deposit_handler, F.data == "deposit")
+        dp.callback_query.register(deposit_amount_handler, F.data.startswith("dep_"))
+        dp.callback_query.register(check_payment, F.data.startswith("check_"))
+        dp.callback_query.register(withdraw_handler, F.data == "withdraw")
+        dp.callback_query.register(groups_handler, F.data == "groups")
+        dp.callback_query.register(promo_codes_handler, F.data == "promo_codes")
+        dp.callback_query.register(activate_promo_handler, F.data == "activate_promo")
 
         # Обработчики профиля
-        dp.callback_query.register(edit_profile_handler, lambda c: c.data == "edit_profile")
-        dp.callback_query.register(detailed_stats_handler, lambda c: c.data == "detailed_stats")
-        dp.callback_query.register(transaction_history_handler, lambda c: c.data == "transaction_history")
-        dp.callback_query.register(profile_settings_handler, lambda c: c.data == "profile_settings")
-        dp.callback_query.register(change_username_handler, lambda c: c.data == "change_username")
-        dp.callback_query.register(change_avatar_handler, lambda c: c.data == "change_avatar")
-        dp.callback_query.register(progress_charts_handler, lambda c: c.data == "progress_charts")
+        dp.callback_query.register(edit_profile_handler, F.data == "edit_profile")
+        dp.callback_query.register(detailed_stats_handler, F.data == "detailed_stats")
+        dp.callback_query.register(transaction_history_handler, F.data == "transaction_history")
+        dp.callback_query.register(profile_settings_handler, F.data == "profile_settings")
+        dp.callback_query.register(change_username_handler, F.data == "change_username")
+        dp.callback_query.register(change_avatar_handler, F.data == "change_avatar")
+        dp.callback_query.register(progress_charts_handler, F.data == "progress_charts")
 
-        dp.callback_query.register(other_callbacks)
+        dp.callback_query.register(other_callbacks, ~F.data.in_(["back_to_main", "daily_bonus", "profile", "play", "referral", "rating", "chances", "admin_panel", "admin_chances", "admin_multiplier", "admin_stats", "admin_set_balance", "edit_chance_duel", "edit_chance_dice", "edit_chance_basketball", "edit_chance_slots", "edit_chance_blackjack", "edit_multiplier_duel", "edit_multiplier_basketball", "edit_multiplier_slots", "edit_multiplier_dice", "edit_multiplier_blackjack", "game_duel", "game_dice", "game_basketball", "game_slots", "game_blackjack", "withdraw_referral", "deposit", "withdraw", "groups", "promo_codes", "activate_promo", "edit_profile", "detailed_stats", "transaction_history", "profile_settings", "change_username", "change_avatar", "progress_charts"]))
 
         # Обработчик ввода суммы
-        dp.message.register(process_custom_amount, StateFilter(DepositStates.waiting_for_amount))
+        dp.message.register(process_custom_amount, DepositStates.waiting_for_amount)
 
         # Обработчик ввода ставки в дуэли
-        dp.message.register(duel_bet_handler, StateFilter(DuelStates.waiting_for_bet))
+        dp.message.register(duel_bet_handler, DuelStates.waiting_for_bet)
 
         # Обработчик ввода ставки в баскетбол
-        dp.message.register(basketball_bet_handler, StateFilter(BasketballStates.waiting_for_bet))
+        dp.message.register(basketball_bet_handler, BasketballStates.waiting_for_bet)
 
         # Обработчик ввода ставки в слоты
-        dp.message.register(slots_bet_handler, StateFilter(SlotsStates.waiting_for_bet))
+        dp.message.register(slots_bet_handler, SlotsStates.waiting_for_bet)
 
         # Обработчик ввода ставки в blackjack
-        dp.message.register(blackjack_bet_handler, StateFilter(BlackjackStates.waiting_for_bet))
+        dp.message.register(blackjack_bet_handler, BlackjackStates.waiting_for_bet)
 
         # Обработчик ввода ставки в Кубикие
-        dp.message.register(dice_bet_handler, StateFilter(DiceStates.waiting_for_bet))
+        dp.message.register(dice_bet_handler, DiceStates.waiting_for_bet)
 
         # Обработчики ввода шансов для админов
-        dp.message.register(set_duel_chance_handler, StateFilter(AdminStates.waiting_for_duel_chance))
-        dp.message.register(set_basketball_chance_handler, StateFilter(AdminStates.waiting_for_basketball_chance))
-        dp.message.register(set_slots_chance_handler, StateFilter(AdminStates.waiting_for_slots_chance))
-        dp.message.register(set_blackjack_chance_handler, StateFilter(AdminStates.waiting_for_blackjack_chance))
-        dp.message.register(set_dice_chance_handler, StateFilter(AdminStates.waiting_for_dice_chance))
+        dp.message.register(set_duel_chance_handler, AdminStates.waiting_for_duel_chance)
+        dp.message.register(set_basketball_chance_handler, AdminStates.waiting_for_basketball_chance)
+        dp.message.register(set_slots_chance_handler, AdminStates.waiting_for_slots_chance)
+        dp.message.register(set_blackjack_chance_handler, AdminStates.waiting_for_blackjack_chance)
+        dp.message.register(set_dice_chance_handler, AdminStates.waiting_for_dice_chance)
 
         # Обработчики ввода множителей для админов
-        dp.message.register(set_duel_multiplier_handler, StateFilter(AdminStates.waiting_for_duel_multiplier))
-        dp.message.register(set_basketball_multiplier_handler, StateFilter(AdminStates.waiting_for_basketball_multiplier))
-        dp.message.register(set_slots_multiplier_handler, StateFilter(AdminStates.waiting_for_slots_multiplier))
-        dp.message.register(set_blackjack_multiplier_handler, StateFilter(AdminStates.waiting_for_blackjack_multiplier))
-        dp.message.register(set_dice_multiplier_handler, StateFilter(AdminStates.waiting_for_dice_multiplier))
+        dp.message.register(set_duel_multiplier_handler, AdminStates.waiting_for_duel_multiplier)
+        dp.message.register(set_basketball_multiplier_handler, AdminStates.waiting_for_basketball_multiplier)
+        dp.message.register(set_slots_multiplier_handler, AdminStates.waiting_for_slots_multiplier)
+        dp.message.register(set_blackjack_multiplier_handler, AdminStates.waiting_for_blackjack_multiplier)
+        dp.message.register(set_dice_multiplier_handler, AdminStates.waiting_for_dice_multiplier)
 
         # Обработчики вывода средств
-        dp.message.register(withdraw_amount_handler, StateFilter(WithdrawStates.waiting_for_withdraw_amount))
+        dp.message.register(withdraw_amount_handler, WithdrawStates.waiting_for_withdraw_amount)
 
         # Обработчики промокодов
-        dp.message.register(promo_code_handler, StateFilter(PromoStates.waiting_for_promo_code))
+        dp.message.register(promo_code_handler, PromoStates.waiting_for_promo_code)
 
 # Вызываем регистрацию обработчиков
 setup_handlers()
