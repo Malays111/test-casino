@@ -11,7 +11,7 @@
 - `RAILWAY-DEPLOY.md` - подробная инструкция для Railway
 - `Procfile` - конфигурация для Heroku/PythonAnywhere
 - `runtime.txt` - версия Python (3.11.0)
-- `requirements.txt` - зависимости с python-dotenv и gunicorn
+- `requirements.txt` - зависимости с python-dotenv, gunicorn и aiogram
 - `.env` - переменные окружения
 - `app.py` - продакшен скрипт запуска
 - `.gitignore` - исключения для Git
